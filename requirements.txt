@@ -5,3 +5,5 @@ joblib
 chromadb
 pydantic
 sentence-transformers
+
+requests

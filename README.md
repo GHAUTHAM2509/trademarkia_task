@@ -1,69 +1,52 @@
 # Trademarkia Semantic Search API
 
-This repository contains a high-performance Semantic Search API powered by **FastAPI**, **ChromaDB**, and **SentenceTransformers**. It implements an advanced **Cluster-Aware Semantic Cache** using a Gaussian Mixture Model (GMM) to intelligently route queries and significantly reduce database I/O, resulting in lightning-fast search responses.
+Trademarkia Semantic Search API is a robust, high-performance semantic search pipeline and FastAPI application designed to efficiently retrieve and cache queries over the 20 Newsgroups corpus. This project leverages state-of-the-art natural language processing techniques, including the BAAI/bge-small-en-v1.5 embedding model, to provide accurate and context-aware search results. By implementing advanced retrieval strategies such as fuzzy clustering for data organization and semantic caching for optimized query response times, the system ensures high throughput and low latency. Built with a modern stack featuring ChromaDB for vector storage and FastAPI for the web interface, it provides a scalable solution for complex text retrieval tasks.
 
-## Core Architecture
+## Setup and Installation
 
-The system is built on a custom data pipeline:
-1. **Data Preprocessing** (`pipeline/process_all.py`): Iterates through the raw dataset (20 Newsgroups), cleans the text extracts, and saves them to `data/complete_preprocessing/`.
-2. **Vector Ingestion** (`pipeline/setup_chromadb.py`): Embeds the documents using `bge-small-en-v1.5` and ingests them into a persistent local ChromaDB using batching for stability.
-3. **Fuzzy Clustering** (`pipeline/clustering.py`): Trains a Gaussian Mixture Model (GMM) on the embeddings to discover latent semantic clusters (k=125) and tags the ChromaDB vectors with fuzzy probability distributions.
-4. **Semantic Search & Cache Service** (`app/main.py` & `app/cache_logic.py`): A FastAPI application that vectorizes incoming user queries, predicts the query's semantic cluster via the GMM, and checks an in-memory Cluster-Aware Semantic Cache. 
-   - **Cache Hit**: Resolves directly from RAM for sub-millisecond latency.
-   - **Cache Miss**: Filters the ChromaDB query to only search within the target cluster, returning the results and updating the cache.
-
----
-
-## 🚀 Setup and Installation
-
-### Prerequisites
-- **Python 3.10+**
-- **Docker** and **Docker Compose** (for containerized deployment)
-
-### Local Development Setup
-
-1. **Clone the repository and enter the directory**:
-   ```bash
-   cd trademarkia_task
+1. **Clone the repository and set up a virtual environment:**
+   ```bash 
+   python3 -m venv .venv
+   source .venv/bin/activate  
    ```
 
-2. **Create a virtual environment** (optional but recommended):
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install Dependencies**:
+2. **Install the dependencies:**
+   Ensure you have all required libraries installed. Typical requirements include:
    ```bash
    pip install -r requirements.txt
    ```
 
-*(Note: Data generation scripts may require additional dependencies like `scikit-learn` for GMM training).*
+## Running the Pipeline (Data Preparation)
 
----
+To initialize the database, train the models, and prepare the embeddings from scratch, run the scripts in the `pipeline/` directory in the following order:
 
-## 🛠 Running the Pipeline (Data Preparation)
-
-If you are starting from scratch and need to rebuild the database and cluster models, follow these steps in order:
-
-1. **Preprocess Dataset**:
+1. **Clean and Preprocess the Data:**
+   Strips noise, standardizes question/answer formats, and saves cleaned text to `data/complete_preprocessing/`.
    ```bash
-   python pipeline/process_all.py
+   cd pipeline
+   python process_all.py
    ```
-2. **Ingest embeddings into ChromaDB**:
-   Ensure you have your embeddings (`data/corpus_embeddings.npy`) and mapping paths (`data/corpus_paths.txt`) ready, then run:
-   ```bash
-   python pipeline/setup_chromadb.py
-   ```
-3. **Train GMM and Tag Clusters**:
-   ```bash
-   python pipeline/clustering.py
-   ```
-   *This trains the GMM and saves `app/models/gmm_model.pkl`.*
 
----
+2. **Generate Vector Embeddings:**
+   Loads the BAAI/bge-small-en-v1.5 model and generates normalized vector embeddings for the cleaned documents.
+   ```bash
+   python vector_store.py
+   ```
 
-## 🐳 Running the API Service
+3. **Train the Fuzzy Clusters (GMM):**
+   *(Note: Make sure ChromaDB is running or setup script is adjusted if it expects the DB first. Normally, load data to ChromaDB first, then extract to cluster, or vice versa depending on your architecture).* 
+   To set up the Chroma Database with the embeddings, run:
+   ```bash
+   python setup_chromadb.py
+   ```
+   Then, train the Gaussian Mixture Model to tag documents with their dominant clusters:
+   ```bash
+   python clustering.py
+   ```
+
+
+
+## Running the API Service
 
 ### Option 1: Using Docker Compose (Recommended)
 
@@ -87,9 +70,9 @@ If you prefer running the uvicorn server directly on your host machine:
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
----
 
-## 📖 API Endpoints
+
+## API Endpoints
 
 Once the application is running, you can access the automatically generated interactive API documentation at:
 - **Swagger UI**: `http://localhost:8000/docs`
@@ -105,5 +88,71 @@ Once the application is running, you can access the automatically generated inte
     "top_k": 5
   }
   ```
+  ![alt text](experiments/outputs/image-4.png)
 - `GET /cache/stats`: Returns current real-time statistics of the cluster-aware semantic cache.
+![alt text](experiments/outputs/image-3.png)
 - `DELETE /cache`: Flushes the entire in-memory cache and resets stats.
+![alt text](experiments/outputs/image-2.png)
+
+---
+
+## Architecture Overview
+
+The system is broken down into distinct stages:
+1. **Data Preprocessing**: Cleans the raw text data by removing noise, metadata, and routing lines, while correctly chunking and categorizing Question vs Monologue formats.
+2. **Vectorization**: Converts the cleaned documents into dense 384-dimensional vector embeddings using the lightweight `BAAI/bge-small-en-v1.5` model.
+3. **Fuzzy Clustering (GMM)**: Evaluates the embeddings using a Gaussian Mixture Model with 125 clusters to probabilistically map documents to specific topic buckets. 
+4. **Vector Database Engine**: Stores the documents, metadata (including cluster data), and embeddings inside a persistent local **ChromaDB**.
+5. **Cluster-Aware Semantic Caching**: A custom, in-memory caching system that intercepts incoming queries, maps them to their GMM cluster, and serves cached responses if the similarity > 0.86.
+6. **API Layer**: Exposes the query endpoint and cache management routes utilizing **FastAPI**.
+---
+## 📁 Repository Structure
+
+```text
+.
+├── app/
+│   ├── main.py                # FastAPI Server & Routes
+│   ├── cache_logic.py         # ClusterAwareSemanticCache implementation
+│   └── models/                # Saved models (e.g., GMM pickle files)
+├── data/                      # Data storage (Raw, Processed, ChromaDB output)
+├── pipeline/
+│   ├── preprocessing.py       # Functions to clean 20_newsgroups noise
+│   ├── process_all.py         # Batch runner for the preprocessing
+│   ├── vector_store.py        # Embeds the corpus using SentenceTransformers
+│   ├── clustering.py          # Trains GMM and injects fuzzy distributions into ChromaDB
+│   └── setup_chromadb.py      # Initialize and persist documents/embeddings to ChromaDB
+├── experiments/
+│   ├── find_optimal_clusters.py # Calculates absolute minimum BIC score (k=125)
+│   ├── profile_clusters.py      # Analyzes how original categories group within clusters
+│   ├── analyze_lengths.py       # Validates the 512-token limit of the BGE model
+│   └── cluster_retrieval.py     # Tests cluster-filtered context queries 
+└── tests/
+    ├── test_preprocess.py       # Automated testing for preprocessing 
+    ├── evaluate_preprocessing.py# Uses an LLM (Phi-3 via Ollama) to score cleaning quality
+    └── test_retrieval.py        # Validates base ChromaDB similarity search
+```
+---
+## Key Technologies & Design Choices
+
+### 1. BGE-Small Embedding Model
+The `BAAI/bge-small-en-v1.5` model was chosen because it outputs 384-dimensional vectors, making it highly optimal for lightweight, asymmetric semantic search setups. 
+
+### 2. Gaussian Mixture Model (GMM) Clustering
+Using Bayesian Information Criterion (BIC), the optimal number of clusters (`k`) was statistically mapped to `125`. Injecting this `dominant_cluster` into ChromaDB's metadata allows the search space to be immediately narrowed down significantly, acting as an extreme performance optimizer.
+
+![alt text](experiments/outputs/image.png)
+
+### 3. Cluster-Aware Semantic Cache
+Implemented internally (`app/cache_logic.py`), this intelligently stores prior queries based on vector similarity.
+- **Cache Hit**: Skips database IO and model inference for similar or paraphrased questions.
+- **Cache Miss**: Drops down to ChromaDB, filtering strictly by the `dominant_cluster` dynamically predicted by the GMM.
+
+### 4. LLM-Evaluated Preprocessing
+The pipeline uses a local LLM (Microsoft's Phi-3 via Ollama) to autonomously sample and "grade" the noise-stripping operations of the preprocessing engine.
+
+![alt text](experiments/outputs/image-1.png)
+
+## Testing and Experiments
+
+To replicate or review the model architectures, run the specific files inside the `experiments/` and `tests/` directories. Note that `evaluate_preprocessing.py` requires an active, local `ollama` instance hosting the `phi3` model.
+
