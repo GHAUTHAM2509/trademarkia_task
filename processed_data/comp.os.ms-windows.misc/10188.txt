@@ -1,0 +1,19 @@
+Subject: PostScript to BMP conversion
+
+[Answer/Monologue]
+Hi All.
+
+[Answer/Monologue]
+I am working on a project in visual basic ver. 2.0 and I need to show
+ PostCript files I am getting from another aplication.
+ So, because i can't show PostScript directly form Visual Basic (at least I
+ don't know how), i need a utility to convert them to BMP, WMF.
+
+[Answer/Monologue]
+Any help will be appreshieated.
+
+[Answer/Monologue]
+kobi elimelech
+---------------------------------------------------------------
+ messges can be sent to me at kobi@asimov.hacktic.nl
+---------------------------------------------------------------

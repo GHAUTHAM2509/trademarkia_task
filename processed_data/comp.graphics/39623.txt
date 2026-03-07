@@ -1,0 +1,16 @@
+Subject: Re: SIGGRAPH online experimental publication available
+
+[Answer/Monologue]
+try  cd'ing to
+
+[Answer/Monologue]
+publications/May_93_online
+
+[Answer/Monologue]
+on siggraph.org
+
+[Answer/Monologue]
+It's there!
+
+[Answer/Monologue]
+Rosalee

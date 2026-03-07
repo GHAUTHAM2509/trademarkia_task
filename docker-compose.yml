@@ -1,0 +1,12 @@
+services:
+  api:
+    build: .
+    image: trademarkia-semantic-search:latest
+    container_name: trademarkia-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/chroma_db:/app/data/chroma_db
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
